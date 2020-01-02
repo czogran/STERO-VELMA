@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+ 
+import roslib;     roslib.load_manifest('velma_task_cs_ros_interface')
+ 
+import rospy
+import math
+import PyKDL
+ 
+from velma_common import *
+from rcprg_planner import *
+from rcprg_ros_utils import exitError
+from grip import *
+from move_joint import *
+from move_vector import *
+
+def exitError(code):
+     if code == 0:
+         print "OK"
+         exit(0)
+     print "ERROR:", code
+     exit(code)
+ 
+
+if __name__ == "__main__":
+     # define some configurations
+    print "VELMA"
+    rospy.init_node('start')
+ 
+    rospy.sleep(0.5)
+    velma = VelmaInterface()
+    velma.waitForInit()
+
+    if not velma.waitForInit(timeout_s=10.0):
+         print "Could not initialize VelmaInterface\n"
+
+
+    planner = Planner(velma.maxJointTrajLen())
+    planner.waitForInit()
+    oml = OctomapListener("/octomap_binary")
+    rospy.sleep(1.0)
+    octomap = oml.getOctomap(timeout_s=5.0)
+    planner.processWorld(octomap)
+
+
+    print "Enabling motors..."
+    if velma.enableMotors() != 0:
+         exitError(2)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.motorsReady():
+         print "Motors must be homed and ready to use for this test."
+         exitError(1)
+
+
+    move_joint(velma,planner,q_map_goal1)
+    
+   #SWITCH TO CART IMP MODE
+    print "Switch to cart_imp mode (no trajectory)..."
+    if not velma.moveCartImpRightCurrentPos(start_time=0.2):
+         exitError(10)
+    if velma.waitForEffectorRight() != 0:
+         exitError(11)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.inStateCartImp():
+         print "The core_cs should be in cart_imp state, but it is not"
+         exitError(12)
+    
+    print "Moving the right tool and equilibrium pose from 'wrist' to 'grip' frame..."
+    T_B_Wr = velma.getTf("B", "Wr")
+    T_Wr_Gr = velma.getTf("Wr", "Gr")
+    print T_Wr_Gr
+    print ""
+    T_Wr_Gr.M = PyKDL.Rotation.RotY(50)
+    print T_Wr_Gr
+    if not velma.moveCartImpRight([T_B_Wr*T_Wr_Gr], [3], [T_Wr_Gr], [3], None, None, PyKDL.Wrench(PyKDL.Vector(5,5,5), PyKDL.Vector(5,5,5)), start_time=0.5):
+         exitError(18)
+    if velma.waitForEffectorRight() != 0:
+         exitError(19)
+ 
+    print "the right tool is now in 'grip' pose"
+    rospy.sleep(0.5)
+ 

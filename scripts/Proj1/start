@@ -1,0 +1,206 @@
+#!/usr/bin/env python
+ 
+ 
+import roslib;     roslib.load_manifest('velma_task_cs_ros_interface')
+ 
+import rospy
+import math
+import PyKDL
+ 
+from velma_common import *
+from rcprg_planner import *
+from rcprg_ros_utils import exitError
+ 
+from grip import *
+from move_joint import *
+from move_vector import *
+
+def exitError(code):
+     if code == 0:
+         print "OK"
+         exit(0)
+     print "ERROR:", code
+     exit(code)
+ 
+
+if __name__ == "__main__":
+     # define some configurations
+
+    print "VELMA"
+    rospy.init_node('start')
+    print("node started")
+    rospy.sleep(0.5)
+    velma = VelmaInterface()
+    
+    velma.waitForInit()
+    
+
+    if not velma.waitForInit(timeout_s=10.0):
+         print "Could not initialize VelmaInterface\n"
+
+    #PLANNER INITIALZIATON
+    planner = Planner(velma.maxJointTrajLen())
+    planner.waitForInit()
+    oml = OctomapListener("/octomap_binary")
+    rospy.sleep(1.0)
+    octomap = oml.getOctomap(timeout_s=5.0)
+    planner.processWorld(octomap)
+
+    #MOTOR ENABLING
+    print "Enabling motors..."
+    if velma.enableMotors() != 0:
+         exitError(2)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.motorsReady():
+         print "Motors must be homed and ready to use for this test."
+         exitError(1)
+    
+
+
+    #GO TO START POSITION
+    grip(velma,90)
+    move_joint(velma,planner,q_map_goal)
+    grip(velma,0)
+
+    #TURN TO BEER
+    base_beer = velma.getTf("B", "beer")
+    angle_beer=math.atan2(base_beer.p.y(), base_beer.p.x())
+    q_map_goal1['torso_0_joint']=angle_beer+0.5
+    print "angel corpse to turn"
+    print angle_beer
+    move_joint(velma,planner,q_map_goal1)
+    
+
+
+    base_beer = velma.getTf("B", "beer")
+    wrist_beer = velma.getTf("Gr", "beer")
+    base_grip=velma.getTf("B", "Gr")
+    base_wrist=velma.getTf("B", "Gr")
+    base_wrist=velma.getTf("B", "Wr")
+    wrist_grip=velma.getTf("Wr", "Gr")
+
+    print "Base beer"
+    print base_beer
+    
+    angle_beer=math.atan2(base_beer.p.y(), base_beer.p.x())
+    
+    print"angle_beer"
+    print angle_beer
+    
+    rotation=PyKDL.Rotation.RotZ(angle_beer)
+
+    frame=PyKDL.Frame(rotation,base_wrist.p)
+    print "frame"
+    print frame
+    
+    #START WRIST ROTATION
+    move_frame(velma, frame)
+
+    diffrence=base_grip.p-base_wrist.p
+    print"diffrence"
+    print diffrence
+    
+    grip(velma,0.0)
+    
+    pose=base_beer.p
+    if(base_beer.p.x()<0):
+		pose=pose+PyKDL.Vector(0.1,0,0)
+    else:
+		pose=pose+PyKDL.Vector(-0.1,0,0)
+    
+    if(base_beer.p.y()<0):
+		pose=pose+PyKDL.Vector(0,0.1,0)
+    else:
+		pose=pose+PyKDL.Vector(0,-0.1,0)
+    
+    pose=pose-diffrence
+    print(pose)
+    
+    frame=PyKDL.Frame(rotation,pose)
+    move_frame(velma, frame)
+    
+    
+    print "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    
+    
+    
+    
+    base_beer = velma.getTf("B", "beer")
+    base_wrist=velma.getTf("B", "Wr")
+
+
+    angle_beer=math.atan2(base_beer.p.y(), base_beer.p.x())
+    
+    rotation_angle=angle_beer
+    rotation=PyKDL.Rotation.RotZ(rotation_angle)
+    frame=PyKDL.Frame(rotation,base_wrist.p)
+    print "frame"
+    print frame
+    
+    
+    move_frame(velma, frame)
+    
+    grip(velma,0.0)
+    
+    pose=base_beer.p
+    if(base_beer.p.x()<0):
+		pose=pose+PyKDL.Vector(0.17,0,0)
+    else:
+		pose=pose+PyKDL.Vector(-0.17,0,0)
+    
+    if(base_beer.p.y()<0):
+		pose=pose+PyKDL.Vector(0,0.17,0)
+    else:
+		pose=pose+PyKDL.Vector(0,-0.17,0)
+    
+#pose=pose-diffrence
+    print(pose)
+    
+    frame=PyKDL.Frame(rotation,pose)
+    move_frame(velma, frame)
+   
+    
+    grip(velma,90)
+    
+    base_wrist=velma.getTf("B", "Wr")
+    move_vector(velma,base_wrist.p+PyKDL.Vector(0,0,0.1))
+    move_joint(velma,planner,q_map_goal)
+
+
+    #PUT AWAY
+    base_table=velma.getTf("B", "table")
+    print base_table
+    print "angle"
+    turn_angle=math.atan2(base_table.p.y(),base_table.p.x())
+    print math.atan2(base_table.p.y(),base_table.p.x())
+    if (turn_angle>=1.55):
+       turn_angle=1.50
+    if (turn_angle<=-1.55):
+       turn_angle=-1.50
+    q_map_put['torso_0_joint']=turn_angle
+    print math.atan2(base_table.p.y(),base_table.p.x())
+    move_joint(velma,planner,q_map_put)
+    
+    
+
+    pose=base_table
+    angle_table=math.atan2(base_table.p.y(), base_table.p.x())
+    pose.M=PyKDL.Rotation.RotZ(angle_table)
+    if(base_table.p.x()>0):
+        pose.p=pose.p-PyKDL.Vector(0.3,0,0)
+    else:
+        pose.p=pose.p+PyKDL.Vector(0.3,0,0)
+
+    if(base_table.p.y()>0):
+        pose.p=pose.p-PyKDL.Vector(0,0.3,0)
+    else:
+        pose.p=pose.p+PyKDL.Vector(0,0.3,0)
+    pose.p=pose.p+PyKDL.Vector(0,0,1.15)
+    move_frame(velma,pose)
+    grip(velma,0)
+    move_joint(velma,planner,q_map_goal)
+
+    #grip (velma,0)

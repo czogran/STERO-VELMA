@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<launch>
+   
+
+<node pkg="velma_common" name="reset" type="reset_shm_comm" output="screen"> </node>
+
+   <include file="$(find stero_velma)/launch/velma_system_stero.launch">
+      <arg name="world_name" value="worlds/cabinet1.world" /> 
+ 
+   
+
+  </include>
+  
+  <include file="$(find stero_velma)/launch/gazebo_client.launch"></include>
+  
+  <include file="$(find velma_ros_plugin)launch/velma_planner.launch"></include>
+
+ <arg name="octomap_file" default="$(find stero_velma)/maps/proj2.bt" />
+   <node name="om_server" pkg="octomap_server" type="octomap_server_node" output="screen" args="$(arg octomap_file)" />
+
+ <include file="$(find rcprg_gazebo_utils)/launch/gazebo_publish_ros_tf_object.launch">
+        <arg name="link_name" value="cabinet_door::right_door"/>
+        <arg name="frame_id" value="right_door"/>
+    </include>
+
+
+ <include file="$(find rcprg_gazebo_utils)/launch/gazebo_publish_ros_tf_object.launch">
+        <arg name="link_name" value="cabinet_door::cabinet"/>
+        <arg name="frame_id" value="cabinet"/>
+    </include>
+
+
+</launch>

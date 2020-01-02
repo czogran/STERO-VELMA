@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+ <launch>
+ 
+   <arg name="octomap_file" default="$(find stero_velma)/maps/proj2.bt" />
+   <node name="om_server" pkg="octomap_server" type="octomap_server_node" output="screen" args="$(arg octomap_file)" />
+ </launch>
+ 
+
+<include file="$(find  rcprg_gazebo_util)/launch/gazebo_publish_ros_tf_object.launch">
+	<arg name="link_name" value="cabinet_door::link" /> 
+	<arg name="frame_id" value="cabinet" /> 
+</include>
+
+<include file="$(find  rcprg_gazebo_util)/launch/gazebo_publish_ros_tf_object.launch">
+	<arg name="link_name" value="cabinet_door::link" /> 
+	<arg name="frame_id" value="right_door" /> 
+</include>

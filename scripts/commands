@@ -1,0 +1,14 @@
+roslaunch stero_velma velma_system_stero.launch world_name:=worlds/beer1.world
+
+roslaunch stero_velma gazebo_client.launch
+
+roslaunch velma_ros_plugin velma_planner.launch
+
+roslaunch rcprg_gazebo_utils gazebo_publish_ros_tf_object.launch link_name:=beer::link frame_id:=beer
+
+rosrun octomap_server octomap_server_node mapBeer.bt
+
+
+roslaunch velma_description description_test.launch 
+
+

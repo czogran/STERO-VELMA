@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+ 
+ 
+import roslib;     roslib.load_manifest('velma_task_cs_ros_interface')
+ 
+import rospy
+import math
+import PyKDL
+ 
+from velma_common import *
+from rcprg_planner import *
+from rcprg_ros_utils import exitError
+from move_joint import*
+from grip import*
+
+def exitError(code):
+     if code == 0:
+         print "OK"
+         exit(0)
+     print "ERROR:", code
+     exit(code)
+ 
+
+if __name__ == "__main__":
+     # define some configurations
+
+    q_map_goal = {'torso_0_joint':0, 'right_arm_0_joint':-0.46, 'right_arm_1_joint':-1.2,
+         'right_arm_2_joint':-1.54, 'right_arm_3_joint':-1.96, 'right_arm_4_joint':-2.23, 'right_arm_5_joint':-1.63,
+         'right_arm_6_joint':0 }
+
+    q_map_torso = {'torso_0_joint':0}
+    
+    print "VELMA withdraw"
+    rospy.init_node('start')
+ 
+    rospy.sleep(0.5)
+    velma = VelmaInterface()
+    velma.waitForInit()
+
+    if not velma.waitForInit(timeout_s=10.0):
+         print "Could not initialize VelmaInterface\n"
+
+    planner = Planner(velma.maxJointTrajLen())
+    planner.waitForInit()
+    oml = OctomapListener("/octomap_binary")
+    rospy.sleep(1.0)
+    octomap = oml.getOctomap(timeout_s=5.0)
+    planner.processWorld(octomap)
+
+
+    print "Enabling motors..."
+    if velma.enableMotors() != 0:
+         exitError(2)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.motorsReady():
+         print "Motors must be homed and ready to use for this test."
+         exitError(1)
+
+    grip(velma,0)
+    print "troso to 0 position"
+    velma.moveJoint(q_map_torso, 3, start_time=0.5, position_tol=0.1, velocity_tol=0)
+    error = velma.waitForJoint()
+    rospy.sleep(0.5)
+	
+    move_joint(velma,planner,q_map_goal)
+
+    #grip(velma, 90)
+   
+
+
+   
+    

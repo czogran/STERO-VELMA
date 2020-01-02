@@ -1,0 +1,147 @@
+#!/usr/bin/env python
+ 
+ 
+ 
+ # Copyright (c) 2017, Robot Control and Pattern Recognition Group,
+ # Institute of Control and Computation Engineering
+ # Warsaw University of Technology
+ #
+ # All rights reserved.
+ # 
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are met:
+ #     * Redistributions of source code must retain the above copyright
+ #       notice, this list of conditions and the following disclaimer.
+ #     * Redistributions in binary form must reproduce the above copyright
+ #       notice, this list of conditions and the following disclaimer in the
+ #       documentation and/or other materials provided with the distribution.
+ #     * Neither the name of the Warsaw University of Technology nor the
+ #       names of its contributors may be used to endorse or promote products
+ #       derived from this software without specific prior written permission.
+ # 
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL <COPYright HOLDER> BE LIABLE FOR ANY
+ # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ #
+ # Author: Dawid Seredynski
+ #
+ 
+import roslib;     roslib.load_manifest('velma_task_cs_ros_interface')
+ 
+import rospy
+import math
+import PyKDL
+ 
+from velma_common import *
+from rcprg_planner import *
+from rcprg_ros_utils import exitError
+from grip import *
+from move_joint import *
+from move_vector import *
+
+def exitError(code):
+     if code == 0:
+         print "OK"
+         exit(0)
+     print "ERROR:", code
+     exit(code)
+ 
+
+if __name__ == "__main__":
+     # define some configurations
+
+
+
+
+    print "VELMA"
+    rospy.init_node('start')
+ 
+    rospy.sleep(0.5)
+    velma = VelmaInterface()
+    velma.waitForInit()
+
+    if not velma.waitForInit(timeout_s=10.0):
+         print "Could not initialize VelmaInterface\n"
+
+
+    planner = Planner(velma.maxJointTrajLen())
+    planner.waitForInit()
+    oml = OctomapListener("/octomap_binary")
+    rospy.sleep(1.0)
+    octomap = oml.getOctomap(timeout_s=5.0)
+    planner.processWorld(octomap)
+
+    print "Enabling motors..."
+    if velma.enableMotors() != 0:
+         exitError(2)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.motorsReady():
+         print "Motors must be homed and ready to use for this test."
+         exitError(1)
+
+    rospy.sleep(0.5)
+    #print "torso"
+
+    #move_joint_noplan(velma,q_map_torso)
+    print "to goal 0"
+    grip(velma,0)
+    move_joint(velma,planner,q_map_starting)
+ 
+
+
+    #print "move to goal"
+   # print "q_map_goal['torso_0_joint']", q_map_goal['torso_0_joint']
+   # move_joint(velma,planner,q_map_goal)
+    
+
+   # base_beer=velma.getTf("B", "beer")
+   # q_map_goal2['torso_0_joint']=math.atan2(base_beer.p.y(),base_beer.p.x())+0.3
+   # print "angel corpse to turn"
+   # print math.atan2(base_beer.p.y(),base_beer.p.x())
+   
+   # move_joint(velma,planner,q_map_goal2)
+
+
+
+
+
+
+
+   # base_table=base_wrist=velma.getTf("B", "table")
+    #print "table"
+    #print base_table
+
+
+  #  move_joint(velma,planner,q_map_goal)
+   # move_joint_noplan(velma,q_map_torso1)
+    #move_vector(velma,base_table.p+PyKDL.Vector(0,0,0.1))
+        
+
+   # move_joint(velma,planner,q_map_goal)
+
+
+
+    #move_joint(velma,planner,q_map_torso)
+    #move_joint(velma,planner,q_map_torso1)
+
+   # move_joint_noplan(velma,q_map_torso)
+   # move_joint_noplan(velma,q_map_torso)
+   # move_joint(velma,planner,q_map_put)
+    #move_joint_noplan(velma,q_map_put)
+
+   # print "Move to put position..."
+   # move_joint_noplan(velma,q_map_goal)
+   # move_joint(velma,planner,q_map_pose)
+
+
+  #  move_joint_noplan(velma,q_map_put)

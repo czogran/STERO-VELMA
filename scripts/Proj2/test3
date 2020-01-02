@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+ 
+import roslib;     roslib.load_manifest('velma_task_cs_ros_interface')
+ 
+import rospy
+import math
+import PyKDL
+ 
+from velma_common import *
+from rcprg_planner import *
+from rcprg_ros_utils import exitError
+from grip import *
+from move_joint import *
+from move_vector import *
+
+def exitError(code):
+     if code == 0:
+         print "OK"
+         exit(0)
+     print "ERROR:", code
+     exit(code)
+ 
+
+if __name__ == "__main__":
+     # define some configurations
+    print "VELMA"
+    rospy.init_node('start')
+ 
+    rospy.sleep(0.5)
+    velma = VelmaInterface()
+    velma.waitForInit()
+
+    if not velma.waitForInit(timeout_s=10.0):
+         print "Could not initialize VelmaInterface\n"
+
+
+    planner = Planner(velma.maxJointTrajLen())
+    planner.waitForInit()
+    oml = OctomapListener("/octomap_binary")
+    rospy.sleep(1.0)
+    octomap = oml.getOctomap(timeout_s=5.0)
+    planner.processWorld(octomap)
+
+
+    print "Enabling motors..."
+    if velma.enableMotors() != 0:
+         exitError(2)
+ 
+    rospy.sleep(0.5)
+ 
+    diag = velma.getCoreCsDiag()
+    if not diag.motorsReady():
+         print "Motors must be homed and ready to use for this test."
+         exitError(1)
+
+
+    # INITIAL POSE
+    base_right_door = velma.getTf("B", "right_door")
+    base_cabinet= velma.getTf("B", "cabinet")
+   
+    print "base to right door"   
+    print base_right_door
+    print "base to cabinet"
+    print base_cabinet 
+   
+    #ANGLE TO TURN IN CABINET DIRECTION
+    angle_cabinet=math.atan2(base_cabinet.p.y(), base_cabinet.p.x())
+    q_map_goal1['torso_0_joint']=angle_cabinet
+    print "angel corpse to turn"
+    print angle_cabinet
+    move_joint(velma,planner,q_map_goal1)
+    
+
+    #SWITCH TO CART IMP MODE
+    print "Switch to cart_imp mode (no trajectory)..."
+    if not velma.moveCartImpRightCurrentPos(start_time=0.2):
+         exitError(8)
+    if velma.waitForEffectorRight() != 0:
+         exitError(9)
+
+    grip (velma,120)
+
+    #MOVE TO CABINET
+    start_vector=base_right_door.M*PyKDL.Vector(0.3,0.2,0)+base_right_door.p+PyKDL.Vector(0,0,0.07)
+    start_f=velma.getTf("B", "Wr")
+    start_rotation=start_f.M
+    start_frame=PyKDL.Frame(start_rotation,start_vector)
+    
+    print "start frame"
+    print start_frame
+
+    print "base wrsit"
+    print velma.getTf("B", "Wr").M
+   
+    print("first frame!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    move_frame(velma,start_frame)
+    print("end of firt frame !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    
+    
+    base_finger_tip= velma.getTf("B", "Fr12")
+    right_door_finger_tip= velma.getTf("right_door", "Fr12")
+    finger_wrist= velma.getTf("Fr12", "Wr")
+    tool_wrist=velma.getTf("Tr","Wr")
+
+    second_vector=base_finger_tip.M*finger_wrist.p+base_right_door.p+PyKDL.Vector(0,0,0.03)
+    second_f=velma.getTf("B", "Wr")
+    second_rotation=second_f.M
+    second_frame=PyKDL.Frame(second_rotation,second_vector)
+    
+    
+    
+    print "base finger tip"
+    print  velma.getTf("B", "Fr12")
+    
+    print "finger_wrist"
+    print velma.getTf("Fr12", "Wr")
+    
+    print "base door"
+    print base_right_door
+    
+    print "second frame"
+    print second_frame
+    
+
+    try:
+        print("second frame move !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        violated=move_frame(velma,second_frame,time_wrist=6)
+        print "end of second frame!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    except:
+		print "error"
+    
+    #FINGERS GO TO CABINET
+    grip(velma,50)
+    
+    #SWITCH TO CART IMP MODE
+    if (violated):
+		print("track was violated")
+    print "Switch to cart_imp mode (no trajectory)..."
+    if not velma.moveCartImpRightCurrentPos(start_time=0.2):
+		exitError(8)
+    if velma.waitForEffectorRight() != 0:
+	    exitError(9)
+
+
+    base_finger_tip= velma.getTf("B", "Fr12")
+    right_door_finger_tip= velma.getTf("right_door", "Fr12")
+    finger_wrist= velma.getTf("Fr12", "Wr")
+    tool_wrist=velma.getTf("Tr","Wr")
+    third_vector=base_finger_tip.M*finger_wrist.p+base_right_door.M*PyKDL.Vector(-0.02,-0.4,0)+base_right_door.p+PyKDL.Vector(0,0,0.03)
+    third_f=velma.getTf("B", "Wr")
+    third_rotation=third_f.M
+
+    third_frame=PyKDL.Frame(third_rotation,third_vector)
+    
+    print "third frame"
+    print third_frame
+    
+    print "thirf frame!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    move_frame(velma,third_frame)
+    print "end of third frame!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    print ("end of grab")
+    #grip(velma,90)
